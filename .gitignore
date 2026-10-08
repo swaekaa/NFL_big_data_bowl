@@ -1,0 +1,46 @@
+# ── Data ───────────────────────────────────────────────────────────────────────
+data/raw/
+data/processed/
+*.csv
+*.parquet
+
+# ── Notebooks checkpoints ──────────────────────────────────────────────────────
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env
+*.env
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ── Outputs (figures/reports are committed; raw tables may be large) ───────────
+outputs/tables/*.parquet
+outputs/tables/*.csv
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+logs/
+*.log
