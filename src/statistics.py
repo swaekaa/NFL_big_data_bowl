@@ -198,16 +198,24 @@ def correlation_matrix(
     for x in x_cols:
         row = {}
         for y in y_cols:
+            if x == y:
+                row[y] = 1.0
+                continue
+                
             valid = df[[x, y]].dropna()
             n = len(valid)
             if n < MIN_N:
                 row[y] = np.nan
             else:
+                # Force 1D arrays in case of accidental duplicate columns in df
+                x_data = valid.iloc[:, 0].values
+                y_data = valid.iloc[:, 1].values
+                
                 if method == "spearman":
-                    rho, _ = scipy_stats.spearmanr(valid[x], valid[y])
+                    rho, _ = scipy_stats.spearmanr(x_data, y_data)
                     row[y] = float(rho)
                 else:
-                    r, _ = scipy_stats.pearsonr(valid[x], valid[y])
+                    r, _ = scipy_stats.pearsonr(x_data, y_data)
                     row[y] = float(r)
         results.append(pd.Series(row, name=x))
 
@@ -299,6 +307,9 @@ def compare_groups(
             "min": float(np.min(gdata)),
             "max": float(np.max(gdata)),
         })
+
+    if not summary_rows:
+        return pd.DataFrame()
 
     return pd.DataFrame(summary_rows).set_index("group")
 

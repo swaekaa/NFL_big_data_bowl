@@ -81,6 +81,8 @@ def load_players(path: Path = PLAYERS_CSV) -> pd.DataFrame:
     """
     _require_file(path, "players.csv")
     df = pd.read_csv(path)
+    if "nfl_position" in df.columns and "position" not in df.columns:
+        df = df.rename(columns={"nfl_position": "position"})
     _log_load("players", df, path)
 
     assert "nfl_id" in df.columns, "players.csv must have an 'nfl_id' column"
