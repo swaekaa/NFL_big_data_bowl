@@ -33,6 +33,7 @@ function TrajectoryCanvas({ points, color, label, dcr }: {
     const speed = 3; // frames per animation tick
 
     function draw() {
+      if (!ctx) return;
       if (i >= points.length) { setDrawn(true); return; }
       const end = Math.min(i + speed, points.length - 1);
       for (let j = i; j < end; j++) {

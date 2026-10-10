@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { WRPlayer, TrajectoryData, BootstrapData, SummaryData, CorrelationRow } from '../types';
 
-const BASE = import.meta.env.BASE_URL + 'data/';
+const BASE = (import.meta as any).env.BASE_URL + 'data/';
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
