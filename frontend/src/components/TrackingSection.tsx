@@ -13,8 +13,7 @@ function TrajectoryCanvas({ points, color, label, dcr }: {
     if (!points || points.length === 0 || drawn) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    if (!ctx) return;
+    const ctx: any = canvas.getContext('2d');
 
     const xs = points.map(p => p.x);
     const ys = points.map(p => p.y);
