@@ -1,0 +1,19 @@
+{
+  "n_wr": 28,
+  "spearman_rho": -0.645,
+  "raw_p": 0.0002,
+  "bh_adj_p": 0.168,
+  "huber_p": 0.0234,
+  "ci_lower": -0.812,
+  "ci_upper": -0.337,
+  "n_hypotheses": 140,
+  "ridge_traditional_r2": 0.064,
+  "ridge_tracking_r2": 0.173,
+  "ridge_combined_r2": 0.242,
+  "dcr_vs_forty_rho": 0.06,
+  "dcr_vs_split_rho": -0.05,
+  "dcr_mean": 0.4728,
+  "dcr_std": 0.0413,
+  "dcr_min": 0.4,
+  "dcr_max": 0.6522
+}
