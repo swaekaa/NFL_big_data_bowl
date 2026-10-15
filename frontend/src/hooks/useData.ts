@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { WRPlayer, TrajectoryData, BootstrapData, SummaryData, CorrelationRow } from '../types';
 
-const rawBase = import.meta.env.BASE_URL || './';
+// Safely access Vite env without breaking TypeScript compilation
+const rawBase = (import.meta as any).env?.BASE_URL || './';
 const BASE = rawBase.endsWith('/') ? `${rawBase}data/` : `${rawBase}/data/`;
 
 async function fetchJson<T>(path: string): Promise<T | null> {
