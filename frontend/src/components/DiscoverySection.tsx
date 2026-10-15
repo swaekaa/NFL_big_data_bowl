@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart } from 'recharts';
+import { Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 import { useWRData } from '../hooks/useData';
 
 const CustomDot = (props: any) => {
@@ -41,7 +41,9 @@ function LinearRegression(data: Array<{ x: number; y: number }>) {
   const sumY = data.reduce((s, d) => s + d.y, 0);
   const sumXY = data.reduce((s, d) => s + d.x * d.y, 0);
   const sumX2 = data.reduce((s, d) => s + d.x * d.x, 0);
-  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const denom = (n * sumX2 - sumX * sumX);
+  if (Math.abs(denom) < 1e-9) return null;
+  const slope = (n * sumXY - sumX * sumY) / denom;
   const intercept = (sumY - slope * sumX) / n;
   return { slope, intercept };
 }
@@ -50,20 +52,31 @@ export default function DiscoverySection() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-100px' });
   const wrData = useWRData();
-  const [revealed, setRevealed] = useState(0);
 
-  const chartData = (wrData ?? []).map(d => ({
-    ...d,
-    x: d.direction_change_rate_SHORT_SHUTTLE,
-    y: d.mean_separation,
-  }));
+  const chartData = (wrData ?? [])
+    .filter(d => typeof d.direction_change_rate_SHORT_SHUTTLE === 'number' && typeof d.mean_separation === 'number')
+    .map(d => ({
+      ...d,
+      x: d.direction_change_rate_SHORT_SHUTTLE,
+      y: d.mean_separation,
+    }));
 
   const reg = chartData.length > 2 ? LinearRegression(chartData) : null;
   const xs = chartData.map(d => d.x);
+  const ys = chartData.map(d => d.y);
+
   const lineData = reg && xs.length ? [
     { x: Math.min(...xs), y: reg.slope * Math.min(...xs) + reg.intercept },
     { x: Math.max(...xs), y: reg.slope * Math.max(...xs) + reg.intercept },
   ] : [];
+
+  const xDomain = xs.length
+    ? [Math.max(0, parseFloat((Math.min(...xs) - 0.05).toFixed(2))), parseFloat((Math.max(...xs) + 0.05).toFixed(2))]
+    : ['auto', 'auto'];
+
+  const yDomain = ys.length
+    ? [Math.max(0, parseFloat((Math.min(...ys) - 0.2).toFixed(2))), parseFloat((Math.max(...ys) + 0.2).toFixed(2))]
+    : ['auto', 'auto'];
 
   const STATS = [
     { label: 'Spearman ρ', val: '−0.645', note: 'Strong negative association', color: 'var(--red)' },
@@ -99,27 +112,33 @@ export default function DiscoverySection() {
         <motion.div initial={{ opacity: 0, y: 24 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.3 }}
           className="glass" style={{ padding: '1.75rem', borderRadius: 12, marginBottom: '2rem' }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--muted)', marginBottom: '1rem' }}>
-            direction_change_rate (Short Shuttle) vs mean_separation (Rookie Season, yards) · N=28 WRs
+            direction_change_rate (Short Shuttle) vs mean_separation (Rookie Season, yards) · N={chartData.length || 28} WRs
           </div>
-          <ResponsiveContainer width="100%" height={360}>
-            <ComposedChart data={chartData} margin={{ top: 20, right: 30, bottom: 40, left: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-              <XAxis dataKey="x" name="DCR" type="number" domain={['dataMin - 0.05', 'dataMax + 0.05']}
-                label={{ value: 'Direction Change Rate (events/s)', position: 'bottom', offset: 16, fill: 'rgba(245,245,247,0.35)', fontSize: 11, fontFamily: 'var(--font-mono)' }}
-                tick={{ fill: 'rgba(245,245,247,0.35)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
-                stroke="rgba(255,255,255,0.06)" />
-              <YAxis dataKey="y" name="Separation" type="number" domain={['dataMin - 0.2', 'dataMax + 0.2']}
-                label={{ value: 'Mean Separation (yds)', angle: -90, position: 'left', fill: 'rgba(245,245,247,0.35)', fontSize: 11, fontFamily: 'var(--font-mono)' }}
-                tick={{ fill: 'rgba(245,245,247,0.35)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
-                stroke="rgba(255,255,255,0.06)" />
-              <Tooltip content={<CustomTooltip />} />
-              <Scatter data={chartData} shape={<CustomDot />} />
-              {lineData.length > 0 && (
-                <Line data={lineData} dataKey="y" dot={false} stroke="rgba(255,45,85,0.6)"
-                  strokeWidth={2} strokeDasharray="6 3" isAnimationActive={false} />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={360}>
+              <ComposedChart data={chartData} margin={{ top: 20, right: 30, bottom: 40, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="x" name="DCR" type="number" domain={xDomain}
+                  label={{ value: 'Direction Change Rate (events/s)', position: 'bottom', offset: 16, fill: 'rgba(245,245,247,0.35)', fontSize: 11, fontFamily: 'var(--font-mono)' }}
+                  tick={{ fill: 'rgba(245,245,247,0.35)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
+                  stroke="rgba(255,255,255,0.06)" />
+                <YAxis dataKey="y" name="Separation" type="number" domain={yDomain}
+                  label={{ value: 'Mean Separation (yds)', angle: -90, position: 'left', fill: 'rgba(245,245,247,0.35)', fontSize: 11, fontFamily: 'var(--font-mono)' }}
+                  tick={{ fill: 'rgba(245,245,247,0.35)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
+                  stroke="rgba(255,255,255,0.06)" />
+                <Tooltip content={<CustomTooltip />} />
+                <Scatter data={chartData} shape={<CustomDot />} />
+                {lineData.length > 0 && (
+                  <Line data={lineData} dataKey="y" dot={false} stroke="rgba(255,45,85,0.6)"
+                    strokeWidth={2} strokeDasharray="6 3" isAnimationActive={false} />
+                )}
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ height: 360, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+              Loading discovery data…
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'rgba(0,212,255,0.8)' }} />

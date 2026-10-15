@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import type { WRPlayer, TrajectoryData, BootstrapData, SummaryData, CorrelationRow } from '../types';
 
-// @ts-ignore
-const BASE = import.meta.env.BASE_URL + 'data/';
+const rawBase = import.meta.env.BASE_URL || './';
+const BASE = rawBase.endsWith('/') ? `${rawBase}data/` : `${rawBase}/data/`;
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(BASE + path);
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
+    if (!res.ok) {
+      console.warn(`Failed to fetch ${BASE + path}: status ${res.status}`);
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    console.warn(`Error fetching ${BASE + path}:`, err);
     return null;
   }
 }
