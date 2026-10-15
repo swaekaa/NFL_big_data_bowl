@@ -1,22 +1,75 @@
 """
 config.py — Central configuration: paths, column definitions, position group mappings.
-
-All notebooks and src modules import from here so that paths and column lists
-are defined in exactly one place.
+Compatible with both local environments and Kaggle notebook environments.
 """
 
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
+# ── Environment Detection ──────────────────────────────────────────────────────
+IN_KAGGLE = Path("/kaggle").exists()
+
 # ── Project Root ───────────────────────────────────────────────────────────────
-# Resolves to nfl-bdb-2027/ regardless of where the script is called from.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if IN_KAGGLE:
+    PROJECT_ROOT = Path("/kaggle/working")
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Ensure project root is in sys.path
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # ── Data Directories ──────────────────────────────────────────────────────────
-DATA_RAW = PROJECT_ROOT / "data" / "raw" / "nfl-big-data-bowl-2027" / "nfl-big-data-bowl-2027"
-DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
+if IN_KAGGLE:
+    # Auto-detect Kaggle input directory
+    KAGGLE_INPUT_DIR = Path("/kaggle/input/nfl-big-data-bowl-2027")
+    if (KAGGLE_INPUT_DIR / "players.csv").exists():
+        DATA_RAW = KAGGLE_INPUT_DIR
+    elif (KAGGLE_INPUT_DIR / "nfl-big-data-bowl-2027" / "players.csv").exists():
+        DATA_RAW = KAGGLE_INPUT_DIR / "nfl-big-data-bowl-2027"
+    else:
+        # Search for any directory in /kaggle/input containing players.csv
+        found_raw = list(Path("/kaggle/input").glob("**/players.csv"))
+        DATA_RAW = found_raw[0].parent if found_raw else KAGGLE_INPUT_DIR
+
+    # Auto-detect processed data directory (if uploaded as Kaggle dataset or in working)
+    found_proc = list(Path("/kaggle/input").glob("**/analysis_dataset.parquet"))
+    if found_proc:
+        DATA_PROCESSED = found_proc[0].parent
+    elif (PROJECT_ROOT / "data" / "processed" / "analysis_dataset.parquet").exists():
+        DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
+    elif (Path("./data/processed/analysis_dataset.parquet")).exists():
+        DATA_PROCESSED = Path("./data/processed")
+    else:
+        DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
+else:
+    raw_candidates = [
+        PROJECT_ROOT / "data" / "raw" / "nfl-big-data-bowl-2027" / "nfl-big-data-bowl-2027",
+        PROJECT_ROOT / "data" / "raw" / "nfl-big-data-bowl-2027",
+        PROJECT_ROOT / "data" / "raw",
+        Path("./data/raw/nfl-big-data-bowl-2027/nfl-big-data-bowl-2027"),
+        Path("./data/raw/nfl-big-data-bowl-2027"),
+        Path("./data/raw"),
+    ]
+    DATA_RAW = raw_candidates[0]
+    for c in raw_candidates:
+        if (c / "players.csv").exists():
+            DATA_RAW = c
+            break
+
+    proc_candidates = [
+        PROJECT_ROOT / "data" / "processed",
+        Path("./data/processed"),
+        Path("../data/processed"),
+    ]
+    DATA_PROCESSED = proc_candidates[0]
+    for c in proc_candidates:
+        if (c / "analysis_dataset.parquet").exists():
+            DATA_PROCESSED = c
+            break
 
 # ── Output Directories ────────────────────────────────────────────────────────
 OUTPUTS_ROOT = PROJECT_ROOT / "outputs"
@@ -59,8 +112,6 @@ NFL_FEATURES_PARQUET = DATA_PROCESSED / "nfl_features.parquet"
 PLAYER_MASTER_PARQUET = DATA_PROCESSED / "player_master.parquet"
 
 # ── Column Definitions ────────────────────────────────────────────────────────
-# Only load the columns we actually need from large files.
-
 COMBINE_TRACKING_COLS = [
     "event_id",
     "nfl_id",
@@ -134,13 +185,12 @@ TRADITIONAL_COMBINE_COLS = [
 ]
 
 # ── Position Group Mappings ───────────────────────────────────────────────────
-# Maps individual position codes → analysis group labels.
 POSITION_GROUPS = {
     # Skill offense
     "WR": "WR",
     "TE": "TE",
     "RB": "RB",
-    "FB": "RB",      # Fullbacks grouped with RB
+    "FB": "RB",
     "QB": "QB",
     # Offensive Line
     "T":  "OL",
@@ -151,7 +201,7 @@ POSITION_GROUPS = {
     "OL": "OL",
     # Defensive Line / pass rushers
     "DE": "Edge",
-    "OLB": "Edge",   # 4-3 OLB acting as edge rusher
+    "OLB": "Edge",
     "DT": "DT",
     "NT": "DT",
     "DL": "DT",
@@ -166,17 +216,15 @@ POSITION_GROUPS = {
     "FS":  "S",
     "SS":  "S",
     "SAF": "S",
-    # Specialists (may have combine tracking but excluded from outcome analysis)
+    # Specialists
     "K":   "Specialist",
     "P":   "Specialist",
     "LS":  "Specialist",
 }
 
-# Minimum sample size (players) to report a position-group finding.
 MIN_SAMPLE_SIZE = 10
 
 # ── Combine Drill Metadata ────────────────────────────────────────────────────
-# Human-readable drill type labels.
 DRILL_TYPE_LABELS = {
     "40": "40-Yard Dash",
     "bench": "Bench Press",
@@ -195,21 +243,21 @@ FIGURE_SIZE_SQUARE = (8, 8)
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 RANDOM_SEED = 42
-BOOTSTRAP_N = 1000     # Number of bootstrap resamples for CIs
-ALPHA = 0.05           # Significance level
+BOOTSTRAP_N = 1000
+ALPHA = 0.05
 
 
 def ensure_dirs() -> None:
     """Create all output and processed-data directories if they don't exist."""
     for d in [DATA_PROCESSED, FIGURES_DIR, TABLES_DIR, REPORTS_DIR]:
-        d.mkdir(parents=True, exist_ok=True)
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError):
+            pass
 
 
 def check_raw_files() -> dict[str, bool]:
-    """
-    Return a dict of {dataset_name: exists} for all expected raw files.
-    Useful to run at the top of every notebook.
-    """
+    """Return a dict of {dataset_name: exists} for all expected raw files."""
     return {name: path.exists() for name, path in ALL_RAW_FILES.items()}
 
 
@@ -221,9 +269,12 @@ def print_file_status() -> None:
     for name, exists in status.items():
         path = ALL_RAW_FILES[name]
         if exists:
-            size_mb = path.stat().st_size / 1_048_576
+            try:
+                size_mb = path.stat().st_size / 1_048_576
+                size_str = f"{size_mb:>10.1f} MB"
+            except Exception:
+                size_str = "    N/A"
             status_str = "✓ FOUND"
-            size_str = f"{size_mb:>10.1f} MB"
         else:
             status_str = "✗ MISSING"
             size_str = ""
